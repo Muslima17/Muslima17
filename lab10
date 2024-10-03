@@ -1,0 +1,234 @@
+import uuid
+import hashlib
+from datetime import datetime, timedelta
+
+# Book Class
+class Book:
+    def __init__(self, title, author):
+        self.bookID = self.generate_book_id()
+        self.title = title
+        self.author = author
+        self.isAvailable = True
+        self.dueDate = None  # Track due date for borrowed books
+
+    def generate_book_id(self):
+        return str(uuid.uuid4())  # Generates a unique alphanumeric ID
+
+    def borrowBook(self):
+        if self.isAvailable:
+            self.isAvailable = False
+            self.dueDate = datetime.now() + timedelta(days=14)  # Set due date for 2 weeks
+            print(f"You have successfully borrowed '{self.title}'. Due date is {self.dueDate.date()}.")
+        else:
+            print(f"'{self.title}' is currently unavailable.")
+
+    def returnBook(self):
+        if not self.isAvailable:
+            self.isAvailable = True
+            print(f"You have successfully returned '{self.title}'.")
+            self.dueDate = None  # Clear due date on return
+        else:
+            print(f"'{self.title}' was not borrowed.")
+
+    def displayBookInfo(self):
+        availability = "Available" if self.isAvailable else "Not Available"
+        print(f"Book ID: {self.bookID}\nTitle: {self.title}\nAuthor: {self.author}\nAvailability: {availability}")
+        if not self.isAvailable and self.dueDate:
+            print(f"Due Date: {self.dueDate.date()}")
+
+# Person Class (Base Class for Roles)
+class Person:
+    def __init__(self, name, age, role, login, password):
+        self.name = name
+        self.ID = self.generate_id()
+        self.age = age
+        self.login = login
+        self.password = self.hash_password(password)
+        self.role = role
+
+    def generate_id(self):
+        return str(uuid.uuid4())  # Generates a unique alphanumeric ID
+
+    def hash_password(self, password):
+        return hashlib.sha256(password.encode()).hexdigest()  # Securely hashes the password
+
+    def displayInfo(self):
+        print(f"Name: {self.name}\nID: {self.ID}\nAge: {self.age}\nRole: {self.role}")
+
+# Librarian Class (Inherits from Person)
+class Librarian(Person):
+    def __init__(self, name, age, login, password):
+        super().__init__(name, age, "LIBRARIAN", login, password)
+        self.managedBooks = []
+
+    def addBook(self, title, author):
+        new_book = Book(title, author)
+        self.managedBooks.append(new_book)
+        print(f"'{title}' has been added to the library's collection.")
+
+    def removeBook(self, bookID):
+        for book in self.managedBooks:
+            if book.bookID == bookID:
+                if book.isAvailable:
+                    self.managedBooks.remove(book)
+                    print(f"'{book.title}' has been removed from the library's collection.")
+                    return
+                else:
+                    print(f"'{book.title}' cannot be removed as it is currently borrowed.")
+                    return
+        print("Book not found.")
+
+    def issueBook(self, bookID, member):
+        for book in self.managedBooks:
+            if book.bookID == bookID:
+                if book.isAvailable:
+                    book.borrowBook()
+                    member.borrowedBooks.append(book)
+                    return
+                else:
+                    print(f"'{book.title}' is currently unavailable.")
+                    return
+        print("Book not found.")
+
+    def returnBook(self, bookID):
+        for book in self.managedBooks:
+            if book.bookID == bookID:
+                book.returnBook()
+                return
+        print("Book not found.")
+
+    def displayManagedBooks(self):
+        if not self.managedBooks:
+            print("No books managed by this librarian.")
+            return
+        print("Managed Books:")
+        for book in self.managedBooks:
+            book.displayBookInfo()
+            print()  # Newline for better readability
+
+# Member Class
+class Member(Person):
+    def __init__(self, name, age, login, password):
+        super().__init__(name, age, "MEMBER", login, password)
+        self.borrowedBooks = []
+
+    def displayBorrowedBooks(self):
+        if not self.borrowedBooks:
+            print("No books borrowed by this member.")
+            return
+        print("Borrowed Books:")
+        for book in self.borrowedBooks:
+            book.displayBookInfo()
+            print()
+
+    def checkOverdueBooks(self):
+        overdue_books = [book for book in self.borrowedBooks if book.dueDate < datetime.now()]
+        if overdue_books:
+            print("You have overdue books:")
+            for book in overdue_books:
+                book.displayBookInfo()
+                print()
+        else:
+            print("You have no overdue books.")
+
+# Guest Class (Inherits from Person)
+class Guest(Person):
+    def __init__(self, name, age, login, password):
+        super().__init__(name, age, "GUEST", login, password)
+
+    def viewCatalog(self, library):
+        print("Library Catalog:")
+        for book in library.catalog:
+            book.displayBookInfo()
+            print()  # Newline for better readability
+
+# Library Class
+class Library:
+    def __init__(self, name, location):
+        self.name = name
+        self.location = location
+        self.catalog = []
+        self.members = []
+        self.librarians = []
+
+    def registerMember(self, member):
+        if any(m.login == member.login for m in self.members):
+            print("A member with this login already exists.")
+            return
+        self.members.append(member)
+        print(f"{member.name} has been registered as a member.")
+
+    def addLibrarian(self, librarian):
+        if any(l.login == librarian.login for l in self.librarians):
+            print("A librarian with this login already exists.")
+            return
+        self.librarians.append(librarian)
+        print(f"{librarian.name} has been added as a librarian.")
+
+    def getMembers(self):
+        return self.members
+
+    def getLibrarians(self):
+        return self.librarians
+
+    def searchBooks(self, title=None, author=None, available=None):
+        results = []
+        for book in self.catalog:
+            if title and title.lower() in book.title.lower():
+                results.append(book)
+            elif author and author.lower() in book.author.lower():
+                results.append(book)
+            elif available is not None and book.isAvailable == available:
+                results.append(book)
+        return results
+
+    def addBookToCatalog(self, title, author):
+        new_book = Book(title, author)
+        self.catalog.append(new_book)
+        print(f"'{title}' has been added to the library's catalog.")
+
+# Example Usage
+if __name__ == "__main__":
+    # Create the library
+    library = Library("City Library", "123 Library St")
+
+    # Create and add a librarian
+    librarian = Librarian("Alice Smith", 35, "alice_smith", "securepassword123")
+    library.addLibrarian(librarian)
+
+    # Register a member
+    member = Member("Bob Brown", 28, "bob_brown", "mypassword456")
+    library.registerMember(member)
+
+    # Librarian adds books to the catalog
+    library.addBookToCatalog("1984", "George Orwell")
+    library.addBookToCatalog("To Kill a Mockingbird", "Harper Lee")
+
+    # Add books to the librarian's managed collection
+    librarian.addBook("1984", "George Orwell")
+    librarian.addBook("To Kill a Mockingbird", "Harper Lee")
+
+    # Guest views catalog
+    guest = Guest("Charlie Green", 22, "charlie_green", "guestpassword789")
+    guest.viewCatalog(library)
+
+    # Member issues a book
+    librarian.issueBook(librarian.managedBooks[0].bookID, member)  # Issuing "1984"
+    member.displayBorrowedBooks()
+
+    # Member checks for overdue books
+    member.checkOverdueBooks()
+
+    # Member returns a book
+    librarian.returnBook(librarian.managedBooks[0].bookID)
+
+    # Search for books
+    print("Search Results for books by George Orwell:")
+    search_results = library.searchBooks(author="George Orwell")
+    for book in search_results:
+        book.displayBookInfo()
+
+    # Check overdue books after a delay (for demonstration purposes)
+    # Simulating the due date passing
+    library.catalog[0].dueDate = datetime.now() - timedelta(days=1)  # Mark the first book as overdue
+    member.checkOverdueBooks()
